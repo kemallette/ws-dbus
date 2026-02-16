@@ -1,7 +1,7 @@
 {
   "uuid": "ws-dbus@kemallette",
   "name": "Workspace D-Bus",
-  "description": "Exposes workspace switching over D-Bus for CLI tools",
-  "shell-version": ["46"],
-  "version": 1
+  "description": "Create, switch, and query GNOME workspaces from the command line. Works on Wayland where wmctrl and xdotool don't.",
+  "shell-version": ["46", "47", "48"],
+  "url": "https://github.com/kemallette/ws-dbus"
 }

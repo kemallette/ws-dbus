@@ -1,5 +1,5 @@
 import Gio from 'gi://Gio';
-import Meta from 'gi://Meta';
+import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 
 const IFACE = `
 <node>
@@ -20,7 +20,7 @@ const IFACE = `
   </interface>
 </node>`;
 
-export default class WorkspaceDbus {
+export default class WorkspaceDbus extends Extension {
     _dbus = null;
 
     enable() {
@@ -45,7 +45,6 @@ export default class WorkspaceDbus {
 
     SwitchToNew() {
         const wm = global.workspace_manager;
-        // Append a new workspace and switch to it
         const count = wm.get_n_workspaces();
         wm.append_new_workspace(false, global.get_current_time());
         wm.get_workspace_by_index(count).activate(global.get_current_time());
