@@ -1,0 +1,7 @@
+{
+  "uuid": "ws-dbus@kemallette",
+  "name": "Workspace D-Bus",
+  "description": "Exposes workspace switching over D-Bus for CLI tools",
+  "shell-version": ["46"],
+  "version": 1
+}
