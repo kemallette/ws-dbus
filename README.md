@@ -1,12 +1,21 @@
 # ws-dbus
 
-GNOME Shell extension that exposes workspace switching over D-Bus for CLI tools.
+Create, switch, and query GNOME workspaces from the command line. Works on Wayland.
 
-On GNOME 46+ with Wayland, there is no way to programmatically switch workspaces from outside the compositor. `wmctrl` and `xdotool` are X11-only. `Shell.Eval` is disabled. `Shell.Introspect` is read-only and restricted. This extension fills that gap by exposing four workspace methods over the session D-Bus.
+```bash
+ws_call SwitchToNew   # create a new workspace and switch to it
+ws_call Switch 2      # switch to workspace 3 (0-based)
+ws_call GetCount      # how many workspaces exist
+ws_call GetActive     # which one is active
+```
 
-## Requirements
+On GNOME 46 with Wayland, `wmctrl` and `xdotool` don't work (X11 only), `Shell.Eval` is disabled, and `Shell.Introspect` is read-only. ws-dbus is a small GNOME Shell extension that fills this gap.
 
-- GNOME Shell 46
+## Use cases
+
+- **Workspace-per-project launchers** — create a new workspace, then open a terminal + editor + browser for a specific project
+- **Session managers** — restore a multi-workspace layout on login
+- **Git worktree workflows** — spin up an isolated workspace for each branch with its own services running
 
 ## Install
 
@@ -15,20 +24,43 @@ mkdir -p ~/.local/share/gnome-shell/extensions/ws-dbus@kemallette
 cp extension.js metadata.json ~/.local/share/gnome-shell/extensions/ws-dbus@kemallette/
 ```
 
-Log out and back in (or restart the Shell on X11 with `Alt+F2` → `r`), then enable:
+Log out and back in, then enable:
 
 ```bash
 gnome-extensions enable ws-dbus@kemallette
 ```
 
-## D-Bus API
+Requires GNOME Shell 46.
 
-Bus: `session`
-Destination: `org.gnome.Shell`
-Object path: `/com/kemallette/Workspace`
-Interface: `com.kemallette.Workspace`
+## Usage
 
-### Methods
+The extension communicates over the D-Bus session bus. The `ws_call` wrapper keeps commands readable:
+
+```bash
+WS_DEST="org.gnome.Shell"
+WS_PATH="/com/kemallette/Workspace"
+WS_IFACE="com.kemallette.Workspace"
+
+ws_call() {
+    gdbus call --session --dest "$WS_DEST" \
+        --object-path "$WS_PATH" \
+        --method "$WS_IFACE.$1" "${@:2}" 2>/dev/null
+}
+```
+
+Parse return values with `grep -oP '\d+'`:
+
+```bash
+index=$(ws_call SwitchToNew | grep -oP '\d+')
+count=$(ws_call GetCount | grep -oP '\d+')
+active=$(ws_call GetActive | grep -oP '\d+')
+```
+
+If the extension is not installed or enabled, `gdbus` exits with code 2 and prints to stderr. The extension must be installed, enabled, and the user must have logged in after installation for GNOME Shell to discover it.
+
+## API
+
+Session bus, destination `org.gnome.Shell`, path `/com/kemallette/Workspace`, interface `com.kemallette.Workspace`.
 
 | Method | Args | Returns | Description |
 |--------|------|---------|-------------|
@@ -37,49 +69,13 @@ Interface: `com.kemallette.Workspace`
 | `GetCount` | — | `i` count | Get the number of workspaces |
 | `GetActive` | — | `i` index | Get the active workspace index (0-based) |
 
-### Examples
+## Security
 
-```bash
-# Switch to a new workspace
-gdbus call --session \
-  --dest org.gnome.Shell \
-  --object-path /com/kemallette/Workspace \
-  --method com.kemallette.Workspace.SwitchToNew
+This extension runs inside the GNOME Shell process — the same trust model as every GNOME extension. It calls `global.workspace_manager` internally and exports the results over D-Bus. It does not re-enable `Shell.Eval` or execute arbitrary code.
 
-# Switch to workspace 3
-gdbus call --session \
-  --dest org.gnome.Shell \
-  --object-path /com/kemallette/Workspace \
-  --method com.kemallette.Workspace.Switch 2
+These four methods can switch workspaces and read workspace count. They cannot read window content, capture screenshots, monitor input, or access the filesystem. Any process running as your user can call them (that's the D-Bus session bus model). Flatpak and Snap apps are filtered by default.
 
-# Get workspace count
-gdbus call --session \
-  --dest org.gnome.Shell \
-  --object-path /com/kemallette/Workspace \
-  --method com.kemallette.Workspace.GetCount
-
-# Get active workspace index
-gdbus call --session \
-  --dest org.gnome.Shell \
-  --object-path /com/kemallette/Workspace \
-  --method com.kemallette.Workspace.GetActive
-```
-
-## Security model
-
-This extension runs inside the GNOME Shell compositor process and exports its own D-Bus interface. It is worth understanding what that means.
-
-**Why GNOME locked down Shell.Eval:** The D-Bus session bus authenticates users by Unix UID, not by application. Any process running as your user can call any method on the session bus. GNOME Shell's built-in `Shell.Eval` method allowed arbitrary JavaScript execution inside the compositor — any local process could capture keystrokes, read clipboard, take screenshots, or inject input. GNOME 41 moved it behind `--unsafe-mode` (off by default), and GNOME 42 added allowlists to other sensitive methods. This was the right call.
-
-**How this extension works:** GNOME extensions are loaded directly into the Shell process. Once enabled, they have full access to Shell internals — there is no further sandboxing. This extension uses that access to call `global.workspace_manager` methods and exports the results over a custom D-Bus interface. It does not bypass or re-enable `Shell.Eval`.
-
-**What these methods can do:** Switch workspaces and read workspace count. Equivalent to pressing `Super+Arrow`.
-
-**What these methods cannot do:** Read window content or titles, capture screenshots, monitor keystrokes or clipboard, execute arbitrary code, access the filesystem.
-
-**Who can call them:** Any unsandboxed process running as your user. Flatpak apps are filtered by default (would need explicit `--talk-name=org.gnome.Shell` permission). Snap apps are blocked by AppArmor.
-
-**The trust boundary is enabling the extension.** Same as any GNOME extension — review the code before you enable it.
+GNOME locked down `Shell.Eval` because it allowed arbitrary JS execution in the compositor. That was the right call. This re-exposes only workspace navigation. [Full background.](https://gitlab.gnome.org/GNOME/gnome-shell/-/issues/3943)
 
 ## License
 
