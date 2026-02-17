@@ -1,22 +1,23 @@
 # ws-dbus
 
-Control GNOME workspaces and windows from the command line. Works on Wayland.
+Control GNOME workspaces and windows from the command line. Simple to use manually, perfect for your agents. Works on Wayland.
 
 ```bash
-ws_call SwitchToNew          # create a new workspace and switch to it
-ws_call Switch 2             # switch to workspace 3 (0-based)
-ws_call GetCount             # how many workspaces exist
-ws_call GetActive            # which one is active
-ws_call ListWindows 0        # list windows on workspace 1 (JSON)
-ws_call ListWindows -- -1    # list windows on all workspaces
-ws_call MoveToWorkspace $ID 1  # move a window to workspace 2
+ws_call SwitchToNew              # create a new workspace and switch to it
+ws_call Switch 2                 # switch to workspace 3 (0-based)
+ws_call GetCount                 # how many workspaces exist
+ws_call GetActive                # which one is active
+ws_call ListWindows 0            # list windows on workspace 1 (JSON)
+ws_call ListWindows -- -1        # list windows on all workspaces
+ws_call MoveToWorkspace $ID 1    # move a window to workspace 2
 ```
 
-On GNOME 46+ with Wayland, `wmctrl` and `xdotool` don't work (X11 only), `Shell.Eval` is disabled, and `Shell.Introspect` is read-only. ws-dbus is a small GNOME Shell extension that fills this gap — it exposes workspace and window control over D-Bus so CLI tools and scripts can use it.
+On GNOME 46+ Wayland, `wmctrl` and `xdotool` don't work (X11 only), `Shell.Eval` is disabled, and `Shell.Introspect` is read-only. ws-dbus is a small GNOME Shell extension that fills this gap — it exposes workspace and window control over D-Bus so scripts, CLI tools, and LLM agents (Claude Code, Cursor, etc.) can use it.
 
 ## Use cases
 
 - **Workspace-per-project launchers** — create a new workspace, then open a terminal + editor + browser for a specific project
+- **Agent-driven workspace management** — an LLM agent can query windows, detect if a project is already open, and switch to it instead of launching a duplicate
 - **Session managers** — restore a multi-workspace layout on login
 - **Git worktree workflows** — spin up an isolated workspace for each branch with its own services running
 - **Window organization** — move windows between workspaces from scripts (e.g., "put all terminals on workspace 1")
@@ -66,7 +67,7 @@ make test             # requires bats and jq
 
 ## Usage
 
-The extension communicates over the D-Bus session bus. The `ws_call` wrapper keeps commands readable:
+The extension communicates over the D-Bus session bus. The `ws_call` wrapper keeps commands readable — drop this into your script or `.bashrc`:
 
 ```bash
 WS_DEST="org.gnome.Shell"
@@ -93,7 +94,7 @@ browser_id=$(echo "$windows" | jq -r '.[] | select(.wm_class == "Google-chrome")
 ws_call MoveToWorkspace "$browser_id" 2
 ```
 
-If the extension is not installed or enabled, `gdbus` exits with code 2 and prints to stderr. The extension must be installed, enabled, and the user must have logged in after installation for GNOME Shell to discover it.
+If the extension is not installed or enabled, `gdbus` exits with code 2 and prints to stderr.
 
 ## API
 
