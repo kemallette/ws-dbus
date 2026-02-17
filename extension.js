@@ -41,10 +41,6 @@ const IFACE = `
 </node>`;
 
 export default class WorkspaceDbus extends Extension {
-    _dbus = null;
-    _lastActive = 0;
-    _signals = [];
-
     enable() {
         this._dbus = Gio.DBusExportedObject.wrapJSObject(IFACE, this);
         this._dbus.export(Gio.DBus.session, '/com/kemallette/Workspace');
@@ -52,7 +48,7 @@ export default class WorkspaceDbus extends Extension {
         const wm = global.workspace_manager;
         this._lastActive = wm.get_active_workspace_index();
 
-        this._signals.push(
+        this._signals = [
             wm.connect('active-workspace-changed', () => {
                 const newIndex = wm.get_active_workspace_index();
                 this._dbus.emit_signal('WorkspaceSwitched',
@@ -66,15 +62,16 @@ export default class WorkspaceDbus extends Extension {
             wm.connect('workspace-removed', () => {
                 this._dbus.emit_signal('WorkspaceRemoved',
                     new GLib.Variant('(i)', [wm.get_n_workspaces()]));
-            })
-        );
+            }),
+        ];
     }
 
     disable() {
         const wm = global.workspace_manager;
         for (const id of this._signals)
             wm.disconnect(id);
-        this._signals = [];
+        this._signals = null;
+        this._lastActive = null;
 
         if (this._dbus) {
             this._dbus.unexport();
