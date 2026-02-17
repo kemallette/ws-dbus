@@ -24,9 +24,14 @@ On GNOME 46+ with Wayland, `wmctrl` and `xdotool` don't work (X11 only), `Shell.
 
 ## Install
 
+Requires GNOME Shell 46+.
+
+### From release (recommended)
+
+Download the latest zip from [Releases](https://github.com/kemallette/ws-dbus/releases):
+
 ```bash
-mkdir -p ~/.local/share/gnome-shell/extensions/ws-dbus@kemallette
-cp extension.js metadata.json ~/.local/share/gnome-shell/extensions/ws-dbus@kemallette/
+gnome-extensions install ws-dbus@kemallette.shell-extension.zip
 ```
 
 Log out and back in, then enable:
@@ -35,7 +40,29 @@ Log out and back in, then enable:
 gnome-extensions enable ws-dbus@kemallette
 ```
 
-Requires GNOME Shell 46+.
+### From source
+
+```bash
+git clone https://github.com/kemallette/ws-dbus.git
+cd ws-dbus
+make install
+```
+
+Log out and back in, then `make enable`.
+
+### Development
+
+The edit/test loop for contributors:
+
+```bash
+# Edit extension.js
+make install          # copy to GNOME extensions dir
+                      # log out and back in (GNOME caches JS modules)
+make enable           # if not already enabled
+make test             # requires bats and jq
+```
+
+`make pack` builds the distributable zip. `make uninstall` removes the extension.
 
 ## Usage
 
