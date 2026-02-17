@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  lint-and-pack:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate metadata.json
+        run: |
+          python3 -c "
+          import json, sys
+          m = json.load(open('metadata.json'))
+          required = ['uuid', 'name', 'description', 'shell-version', 'url']
+          missing = [k for k in required if k not in m]
+          if missing:
+              print(f'Missing fields: {missing}', file=sys.stderr)
+              sys.exit(1)
+          if not isinstance(m['shell-version'], list) or not m['shell-version']:
+              print('shell-version must be a non-empty array', file=sys.stderr)
+              sys.exit(1)
+          print(f'OK: {m[\"uuid\"]} — shell versions {m[\"shell-version\"]}')
+          "
+
+      - name: Lint extension.js
+        run: npx --yes eslint@8 --no-eslintrc --env es2022 --parser-options=ecmaVersion:2022,sourceType:module --global global extension.js
+
+      - name: Build zip
+        run: |
+          # gnome-extensions not available in CI, replicate what pack does
+          zip -j ws-dbus@kemallette.shell-extension.zip extension.js metadata.json
+          echo "Built $(ls -lh ws-dbus@kemallette.shell-extension.zip | awk '{print $5}') zip"
+
+      - name: Verify zip contents
+        run: |
+          unzip -l ws-dbus@kemallette.shell-extension.zip
+          # Ensure both required files are present
+          unzip -l ws-dbus@kemallette.shell-extension.zip | grep -q extension.js
+          unzip -l ws-dbus@kemallette.shell-extension.zip | grep -q metadata.json
