@@ -4,8 +4,8 @@
 # WARNING: Switches workspaces and moves windows during testing.
 
 WS_DEST="org.gnome.Shell"
-WS_PATH="/org/gnome/shell/extensions/WsDbus"
-WS_IFACE="org.gnome.shell.extensions.WsDbus"
+WS_PATH="/org/gnome/Shell/Extensions/WsDbus"
+WS_IFACE="org.gnome.Shell.Extensions.WsDbus"
 
 ws_call() {
     gdbus call --session --dest "$WS_DEST" \

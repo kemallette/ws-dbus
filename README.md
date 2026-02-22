@@ -73,8 +73,8 @@ The extension runs on the D-Bus session bus. Add this helper to your script or `
 
 ```bash
 WS_DEST="org.gnome.Shell"
-WS_PATH="/org/gnome/shell/extensions/WsDbus"
-WS_IFACE="org.gnome.shell.extensions.WsDbus"
+WS_PATH="/org/gnome/Shell/Extensions/WsDbus"
+WS_IFACE="org.gnome.Shell.Extensions.WsDbus"
 
 ws_call() {
     gdbus call --session --dest "$WS_DEST" \
@@ -122,7 +122,7 @@ If the extension is not installed or enabled, `gdbus` exits with code 2 and prin
 
 ## API
 
-Session bus, destination `org.gnome.Shell`, path `/org/gnome/shell/extensions/WsDbus`, interface `org.gnome.shell.extensions.WsDbus`.
+Session bus, destination `org.gnome.Shell`, path `/org/gnome/Shell/Extensions/WsDbus`, interface `org.gnome.Shell.Extensions.WsDbus`.
 
 ### Workspace methods
 
@@ -160,7 +160,7 @@ Get window IDs from `ListWindows`:
 
 ### Signals
 
-Subscribe with `gdbus monitor --session --dest org.gnome.Shell --object-path /org/gnome/shell/extensions/WsDbus`.
+Subscribe with `gdbus monitor --session --dest org.gnome.Shell --object-path /org/gnome/Shell/Extensions/WsDbus`.
 
 | Signal | Args | Description |
 |--------|------|-------------|

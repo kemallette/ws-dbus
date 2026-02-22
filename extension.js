@@ -4,7 +4,7 @@ import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 
 const IFACE = `
 <node>
-  <interface name="org.gnome.shell.extensions.WsDbus">
+  <interface name="org.gnome.Shell.Extensions.WsDbus">
     <method name="Switch">
       <arg type="i" direction="in" name="index"/>
       <arg type="b" direction="out" name="success"/>
@@ -82,7 +82,7 @@ const IFACE = `
 export default class WorkspaceDbus extends Extension {
     enable() {
         this._dbus = Gio.DBusExportedObject.wrapJSObject(IFACE, this);
-        this._dbus.export(Gio.DBus.session, '/org/gnome/shell/extensions/WsDbus');
+        this._dbus.export(Gio.DBus.session, '/org/gnome/Shell/Extensions/WsDbus');
 
         const wm = global.workspace_manager;
         this._lastActive = wm.get_active_workspace_index();
