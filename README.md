@@ -1,27 +1,31 @@
 # ws-dbus
 
-Control GNOME workspaces and windows from the command line. Simple to use manually, perfect for your agents. Works on Wayland.
+Create workspaces, move and resize windows, and tile layouts from the command line. A small GNOME Shell extension that brings scriptable window management back to Wayland.
 
 ```bash
-ws_call SwitchToNew              # create a new workspace and switch to it
-ws_call Switch 2                 # switch to workspace 3 (0-based)
-ws_call GetCount                 # how many workspaces exist
-ws_call GetActive                # which one is active
-ws_call ListWindows 0            # list windows on workspace 1 (JSON)
-ws_call ListWindows -- -1        # list windows on all workspaces
-ws_call MoveToWorkspace $ID 1    # move a window to workspace 2
+ws_call SwitchToNew                  # create workspace and switch to it
+ws_call ListWindows -- -1            # list all windows (JSON)
+ws_call MoveResize $ID 0 0 960 1080  # position and size a window
+ws_call Focus $ID                    # activate a window
 ```
 
-On GNOME 46+ Wayland, `wmctrl` and `xdotool` don't work (X11 only), `Shell.Eval` is disabled, and `Shell.Introspect` is read-only. ws-dbus is a small GNOME Shell extension that fills this gap — it exposes workspace and window control over D-Bus so scripts, CLI tools, and LLM agents (Claude Code, Cursor, etc.) can use it.
+## Why this exists
+
+On GNOME 46+ Wayland, the traditional tools for scripting workspaces and windows are gone:
+
+- **wmctrl / xdotool** — X11 only, don't work on Wayland
+- **Shell.Eval** — disabled since GNOME 41 (arbitrary JS in the compositor)
+- **Shell.Introspect** — read-only, can't move or resize anything
+
+ws-dbus fills this gap. It exposes workspace and window control as D-Bus methods — callable from shell scripts, CLI tools, and coding agents alike.
 
 ## Use cases
 
-- **Workspace-per-project launchers** — create a new workspace, then open a terminal + editor + browser for a specific project
-- **Agent-driven workspace management** — an LLM agent can query windows, detect if a project is already open, and switch to it instead of launching a duplicate
-- **Session managers** — restore a multi-workspace layout on login
-- **Git worktree workflows** — spin up an isolated workspace for each branch with its own services running
-- **Window organization** — move windows between workspaces from scripts (e.g., "put all terminals on workspace 1")
-- **Workspace-aware tooling** — query window titles per workspace to auto-name workspaces, track time, or find a specific app
+- **Workspace-per-project launchers** — open a terminal + editor + browser on a new workspace for each project
+- **Window tiling from scripts** — query the work area, then position windows with `MoveResize`
+- **Agent-driven layouts** — coding agents can query windows, find what's open, and arrange them
+- **Session restore** — recreate a multi-workspace layout on login
+- **Git worktree workflows** — isolated workspace per branch with its own services
 
 ## Install
 
@@ -53,8 +57,6 @@ Log out and back in, then `make enable`.
 
 ### Development
 
-The edit/test loop for contributors:
-
 ```bash
 # Edit extension.js
 make install          # copy to GNOME extensions dir
@@ -67,7 +69,7 @@ make test             # requires bats and jq
 
 ## Usage
 
-The extension communicates over the D-Bus session bus. The `ws_call` wrapper keeps commands readable — drop this into your script or `.bashrc`:
+The extension runs on the D-Bus session bus. Add this helper to your script or `.bashrc`:
 
 ```bash
 WS_DEST="org.gnome.Shell"
@@ -84,14 +86,36 @@ ws_call() {
 Parse return values with `grep -oP '\d+'`. Parse JSON with `jq`:
 
 ```bash
-index=$(ws_call SwitchToNew | grep -oP '\d+')
 count=$(ws_call GetCount | grep -oP '\d+')
 active=$(ws_call GetActive | grep -oP '\d+')
 
-# List all windows, find one by class, move it
+# Find a window by class and move it to workspace 2
 windows=$(ws_call ListWindows -- -1 | sed "s/^('//;s/',)$//")
 browser_id=$(echo "$windows" | jq -r '.[] | select(.wm_class == "Google-chrome") | .id')
 ws_call MoveToWorkspace "$browser_id" 2
+```
+
+### Tiling example
+
+Create a workspace with a terminal on the left and an editor on the right:
+
+```bash
+ws_call SwitchToNew
+ws_idx=$(ws_call GetActive | grep -oP '\d+')
+
+# Get usable screen area (excludes panels/docks)
+area=$(ws_call GetWorkArea | sed "s/^('//;s/',)$//")
+x=$(echo "$area" | jq '.x');  y=$(echo "$area" | jq '.y')
+w=$(echo "$area" | jq '.width');  h=$(echo "$area" | jq '.height')
+
+# Wait for windows to appear, then tile
+windows=$(ws_call ListWindows "$ws_idx" | sed "s/^('//;s/',)$//")
+term_id=$(echo "$windows" | jq -r '.[] | select(.wm_class | ascii_downcase == "gnome-terminal-server") | .id')
+code_id=$(echo "$windows" | jq -r '.[] | select(.wm_class | ascii_downcase == "code") | .id')
+
+ws_call MoveResize "$term_id" "$x" "$y" $((w / 2)) "$h"
+ws_call MoveResize "$code_id" $((x + w / 2)) "$y" $((w / 2)) "$h"
+ws_call Focus "$term_id"
 ```
 
 If the extension is not installed or enabled, `gdbus` exits with code 2 and prints to stderr.
@@ -100,18 +124,32 @@ If the extension is not installed or enabled, `gdbus` exits with code 2 and prin
 
 Session bus, destination `org.gnome.Shell`, path `/org/gnome/shell/extensions/WsDbus`, interface `org.gnome.shell.extensions.WsDbus`.
 
-### Methods
+### Workspace methods
 
 | Method | Args | Returns | Description |
 |--------|------|---------|-------------|
 | `SwitchToNew` | — | `i` index | Append a new workspace and switch to it |
 | `Switch` | `i` index | `b` success | Switch to workspace by index (0-based) |
-| `GetCount` | — | `i` count | Get the number of workspaces |
-| `GetActive` | — | `i` index | Get the active workspace index (0-based) |
-| `ListWindows` | `i` workspaceIndex | `s` JSON | List windows on a workspace. Pass `-1` for all workspaces. |
-| `MoveToWorkspace` | `u` windowId, `i` workspaceIndex | `b` success | Move a window to a workspace. Get window IDs from `ListWindows`. |
+| `GetCount` | — | `i` count | Number of workspaces |
+| `GetActive` | — | `i` index | Active workspace index (0-based) |
+| `ListWindows` | `i` workspaceIndex | `s` JSON | Windows on a workspace, or all if `-1` |
+| `MoveToWorkspace` | `u` windowId, `i` workspaceIndex | `b` success | Move a window to a workspace |
 
-`ListWindows` returns a JSON array:
+### Window methods
+
+| Method | Args | Returns | Description |
+|--------|------|---------|-------------|
+| `MoveResize` | `u` windowId, `i` x, `i` y, `i` width, `i` height | `b` success | Move and resize (unmaximizes first) |
+| `Maximize` | `u` windowId | `b` success | Maximize a window |
+| `Unmaximize` | `u` windowId | `b` success | Unmaximize a window |
+| `Minimize` | `u` windowId | `b` success | Minimize a window |
+| `Unminimize` | `u` windowId | `b` success | Unminimize a window |
+| `Fullscreen` | `u` windowId | `b` success | Make a window fullscreen |
+| `Unfullscreen` | `u` windowId | `b` success | Exit fullscreen |
+| `Focus` | `u` windowId | `b` success | Activate and focus a window |
+| `GetWorkArea` | — | `s` JSON | Usable screen area (excludes panels/docks) |
+
+Get window IDs from `ListWindows`:
 
 ```json
 [
@@ -126,19 +164,21 @@ Subscribe with `gdbus monitor --session --dest org.gnome.Shell --object-path /or
 
 | Signal | Args | Description |
 |--------|------|-------------|
-| `WorkspaceSwitched` | `i` oldIndex, `i` newIndex | Emitted when the active workspace changes |
-| `WorkspaceAdded` | `i` count | Emitted when a workspace is created (count is the new total) |
-| `WorkspaceRemoved` | `i` count | Emitted when a workspace is removed (count is the new total) |
+| `WorkspaceSwitched` | `i` oldIndex, `i` newIndex | Active workspace changed |
+| `WorkspaceAdded` | `i` count | Workspace created (count is new total) |
+| `WorkspaceRemoved` | `i` count | Workspace removed (count is new total) |
 
 ## Security
 
-This extension runs inside the GNOME Shell process — the same trust model as every GNOME extension. It calls `global.workspace_manager` internally and exports the results over D-Bus. It does not re-enable `Shell.Eval` or execute arbitrary code.
+This extension runs inside the GNOME Shell process — the same trust model as every GNOME extension. It does not re-enable `Shell.Eval` or execute arbitrary code.
 
-**Scope:** These methods can switch workspaces, list window titles/classes per workspace, and move windows between workspaces. They cannot read window content, capture screenshots, monitor input, or access the filesystem. `ListWindows` exposes window titles, which may contain document names or URLs — the same data visible in the Alt+Tab switcher.
+**What it can do:** Switch workspaces, list windows, move/resize/focus windows, and query the work area.
 
-**Callers:** Any process running as your user can call these methods (that's the D-Bus session bus model). Flatpak and Snap apps are filtered by default.
+**What it cannot do:** Read window content, capture screenshots, monitor input, or access the filesystem. `ListWindows` exposes window titles (which may contain document names or URLs) — the same data visible in Alt+Tab.
 
-GNOME locked down `Shell.Eval` because it allowed arbitrary JS execution in the compositor. That was the right call. This re-exposes only workspace navigation and window-to-workspace queries. [Full background.](https://gitlab.gnome.org/GNOME/gnome-shell/-/issues/3943)
+**Who can call it:** Any process running as your user via the D-Bus session bus. Flatpak and Snap apps are filtered by default.
+
+[Why Shell.Eval was disabled](https://gitlab.gnome.org/GNOME/gnome-shell/-/issues/3943) — this extension re-exposes only workspace and window management, not arbitrary code execution.
 
 ## License
 
