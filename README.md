@@ -71,8 +71,8 @@ The extension communicates over the D-Bus session bus. The `ws_call` wrapper kee
 
 ```bash
 WS_DEST="org.gnome.Shell"
-WS_PATH="/com/kemallette/Workspace"
-WS_IFACE="com.kemallette.Workspace"
+WS_PATH="/org/gnome/shell/extensions/WsDbus"
+WS_IFACE="org.gnome.shell.extensions.WsDbus"
 
 ws_call() {
     gdbus call --session --dest "$WS_DEST" \
@@ -98,7 +98,7 @@ If the extension is not installed or enabled, `gdbus` exits with code 2 and prin
 
 ## API
 
-Session bus, destination `org.gnome.Shell`, path `/com/kemallette/Workspace`, interface `com.kemallette.Workspace`.
+Session bus, destination `org.gnome.Shell`, path `/org/gnome/shell/extensions/WsDbus`, interface `org.gnome.shell.extensions.WsDbus`.
 
 ### Methods
 
@@ -122,7 +122,7 @@ Session bus, destination `org.gnome.Shell`, path `/com/kemallette/Workspace`, in
 
 ### Signals
 
-Subscribe with `gdbus monitor --session --dest org.gnome.Shell --object-path /com/kemallette/Workspace`.
+Subscribe with `gdbus monitor --session --dest org.gnome.Shell --object-path /org/gnome/shell/extensions/WsDbus`.
 
 | Signal | Args | Description |
 |--------|------|-------------|

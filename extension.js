@@ -4,7 +4,7 @@ import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 
 const IFACE = `
 <node>
-  <interface name="com.kemallette.Workspace">
+  <interface name="org.gnome.shell.extensions.WsDbus">
     <method name="Switch">
       <arg type="i" direction="in" name="index"/>
       <arg type="b" direction="out" name="success"/>
@@ -27,6 +27,45 @@ const IFACE = `
       <arg type="i" direction="in" name="workspaceIndex"/>
       <arg type="b" direction="out" name="success"/>
     </method>
+    <method name="MoveResize">
+      <arg type="u" direction="in" name="windowId"/>
+      <arg type="i" direction="in" name="x"/>
+      <arg type="i" direction="in" name="y"/>
+      <arg type="i" direction="in" name="width"/>
+      <arg type="i" direction="in" name="height"/>
+      <arg type="b" direction="out" name="success"/>
+    </method>
+    <method name="Maximize">
+      <arg type="u" direction="in" name="windowId"/>
+      <arg type="b" direction="out" name="success"/>
+    </method>
+    <method name="Focus">
+      <arg type="u" direction="in" name="windowId"/>
+      <arg type="b" direction="out" name="success"/>
+    </method>
+    <method name="Unmaximize">
+      <arg type="u" direction="in" name="windowId"/>
+      <arg type="b" direction="out" name="success"/>
+    </method>
+    <method name="Minimize">
+      <arg type="u" direction="in" name="windowId"/>
+      <arg type="b" direction="out" name="success"/>
+    </method>
+    <method name="Unminimize">
+      <arg type="u" direction="in" name="windowId"/>
+      <arg type="b" direction="out" name="success"/>
+    </method>
+    <method name="Fullscreen">
+      <arg type="u" direction="in" name="windowId"/>
+      <arg type="b" direction="out" name="success"/>
+    </method>
+    <method name="Unfullscreen">
+      <arg type="u" direction="in" name="windowId"/>
+      <arg type="b" direction="out" name="success"/>
+    </method>
+    <method name="GetWorkArea">
+      <arg type="s" direction="out" name="workArea"/>
+    </method>
     <signal name="WorkspaceSwitched">
       <arg type="i" name="oldIndex"/>
       <arg type="i" name="newIndex"/>
@@ -43,34 +82,31 @@ const IFACE = `
 export default class WorkspaceDbus extends Extension {
     enable() {
         this._dbus = Gio.DBusExportedObject.wrapJSObject(IFACE, this);
-        this._dbus.export(Gio.DBus.session, '/com/kemallette/Workspace');
+        this._dbus.export(Gio.DBus.session, '/org/gnome/shell/extensions/WsDbus');
 
         const wm = global.workspace_manager;
         this._lastActive = wm.get_active_workspace_index();
 
-        this._signals = [
-            wm.connect('active-workspace-changed', () => {
+        wm.connectObject(
+            'active-workspace-changed', () => {
                 const newIndex = wm.get_active_workspace_index();
                 this._dbus.emit_signal('WorkspaceSwitched',
                     new GLib.Variant('(ii)', [this._lastActive, newIndex]));
                 this._lastActive = newIndex;
-            }),
-            wm.connect('workspace-added', () => {
+            },
+            'workspace-added', () => {
                 this._dbus.emit_signal('WorkspaceAdded',
                     new GLib.Variant('(i)', [wm.get_n_workspaces()]));
-            }),
-            wm.connect('workspace-removed', () => {
+            },
+            'workspace-removed', () => {
                 this._dbus.emit_signal('WorkspaceRemoved',
                     new GLib.Variant('(i)', [wm.get_n_workspaces()]));
-            }),
-        ];
+            },
+            this);
     }
 
     disable() {
-        const wm = global.workspace_manager;
-        for (const id of this._signals)
-            wm.disconnect(id);
-        this._signals = null;
+        global.workspace_manager.disconnectObject(this);
         this._lastActive = null;
 
         if (this._dbus) {
@@ -144,5 +180,100 @@ export default class WorkspaceDbus extends Extension {
             }
         }
         return false;
+    }
+
+    MoveResize(windowId, x, y, width, height) {
+        for (const actor of global.get_window_actors()) {
+            if (actor.meta_window.get_id() === windowId) {
+                const win = actor.meta_window;
+                win.unmaximize(3); // Meta.MaximizeFlags.BOTH
+                win.move_resize_frame(true, x, y, width, height);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    Maximize(windowId) {
+        for (const actor of global.get_window_actors()) {
+            if (actor.meta_window.get_id() === windowId) {
+                actor.meta_window.maximize(3); // Meta.MaximizeFlags.BOTH
+                return true;
+            }
+        }
+        return false;
+    }
+
+    Focus(windowId) {
+        for (const actor of global.get_window_actors()) {
+            if (actor.meta_window.get_id() === windowId) {
+                actor.meta_window.activate(global.get_current_time());
+                return true;
+            }
+        }
+        return false;
+    }
+
+    Unmaximize(windowId) {
+        for (const actor of global.get_window_actors()) {
+            if (actor.meta_window.get_id() === windowId) {
+                actor.meta_window.unmaximize(3); // Meta.MaximizeFlags.BOTH
+                return true;
+            }
+        }
+        return false;
+    }
+
+    Minimize(windowId) {
+        for (const actor of global.get_window_actors()) {
+            if (actor.meta_window.get_id() === windowId) {
+                actor.meta_window.minimize();
+                return true;
+            }
+        }
+        return false;
+    }
+
+    Unminimize(windowId) {
+        for (const actor of global.get_window_actors()) {
+            if (actor.meta_window.get_id() === windowId) {
+                actor.meta_window.unminimize();
+                return true;
+            }
+        }
+        return false;
+    }
+
+    Fullscreen(windowId) {
+        for (const actor of global.get_window_actors()) {
+            if (actor.meta_window.get_id() === windowId) {
+                actor.meta_window.make_fullscreen();
+                return true;
+            }
+        }
+        return false;
+    }
+
+    Unfullscreen(windowId) {
+        for (const actor of global.get_window_actors()) {
+            if (actor.meta_window.get_id() === windowId) {
+                actor.meta_window.unmake_fullscreen();
+                return true;
+            }
+        }
+        return false;
+    }
+
+    GetWorkArea() {
+        const monitor = global.display.get_primary_monitor();
+        const area = global.workspace_manager
+            .get_active_workspace()
+            .get_work_area_for_monitor(monitor);
+        return JSON.stringify({
+            x: area.x,
+            y: area.y,
+            width: area.width,
+            height: area.height,
+        });
     }
 }
