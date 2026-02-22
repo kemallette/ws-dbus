@@ -31,7 +31,11 @@ ws-dbus fills this gap. It exposes workspace and window control as D-Bus methods
 
 Requires GNOME Shell 46+.
 
-### From release (recommended)
+### From extensions.gnome.org (recommended)
+
+Install from the [GNOME Extensions page](https://extensions.gnome.org/extension/9340/workspace-d-bus/).
+
+### From GitHub release
 
 Download the latest zip from [Releases](https://github.com/kemallette/ws-dbus/releases):
 
