@@ -63,6 +63,14 @@ const IFACE = `
       <arg type="u" direction="in" name="windowId"/>
       <arg type="b" direction="out" name="success"/>
     </method>
+    <method name="GetWindowSize">
+      <arg type="u" direction="in" name="windowId"/>
+      <arg type="s" direction="out" name="windowSize"/>
+    </method>
+    <method name="GetWindowState">
+      <arg type="u" direction="in" name="windowId"/>
+      <arg type="s" direction="out" name="windowState"/>
+    </method>
     <method name="GetWorkArea">
       <arg type="s" direction="out" name="workArea"/>
     </method>
@@ -262,6 +270,37 @@ export default class WorkspaceDbus extends Extension {
             }
         }
         return false;
+    }
+
+    GetWindowSize(windowId) {
+        for (const actor of global.get_window_actors()) {
+            if (actor.meta_window.get_id() === windowId) {
+                const frame = actor.meta_window.get_frame_rect();
+                return JSON.stringify({
+                    x: frame.x,
+                    y: frame.y,
+                    width: frame.width,
+                    height: frame.height,
+                });
+            }
+        }
+        return JSON.stringify({});
+    }
+
+    GetWindowState(windowId) {
+        for (const actor of global.get_window_actors()) {
+            const win = actor.meta_window;
+
+            if (win.get_id() === windowId) {
+                return JSON.stringify({
+                    maximized: win.is_maximized(),
+                    fullscreen: win.is_fullscreen(),
+                    minimized: win.minimized,
+                });
+            }
+        }
+
+        return JSON.stringify({});
     }
 
     GetWorkArea() {

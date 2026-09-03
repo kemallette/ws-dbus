@@ -150,7 +150,9 @@ Session bus, destination `org.gnome.Shell`, path `/org/gnome/Shell/Extensions/Ws
 | `Unminimize` | `u` windowId | `b` success | Unminimize a window |
 | `Fullscreen` | `u` windowId | `b` success | Make a window fullscreen |
 | `Unfullscreen` | `u` windowId | `b` success | Exit fullscreen |
-| `Focus` | `u` windowId | `b` success | Activate and focus a window |
+| `GetWindowSize` | `u` windowId | `s` JSON | Current window area |
+| `GetWindowState` | `u` windowId | `s` JSON | Current window state, such as {"maximized":false,"fullscreen":false,"minimized":false} |
+| `Focus` | `u` windowId |`s` JSON | Current window area |
 | `GetWorkArea` | — | `s` JSON | Usable screen area (excludes panels/docks) |
 
 Get window IDs from `ListWindows`:
