@@ -2,6 +2,6 @@
   "uuid": "ws-dbus@kemallette",
   "name": "Workspace D-Bus",
   "description": "Control GNOME workspaces and windows from the command line. Move, resize, focus, and tile windows over D-Bus. Works on Wayland where wmctrl and xdotool don't.",
-  "shell-version": ["46", "47", "48"],
+  "shell-version": ["46", "47", "48", "49", "50"],
   "url": "https://github.com/kemallette/ws-dbus"
 }
